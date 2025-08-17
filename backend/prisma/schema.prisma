@@ -1,0 +1,358 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  MERCHANT
+  RIDER
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum StoreCategory {
+  GROCERY
+  PHARMACY
+  DAIRY
+  MEAT
+  BAKERY
+  ELECTRONICS
+  CLOTHING
+  OTHER
+}
+
+enum ProductCategory {
+  FRUITS
+  VEGETABLES
+  LEAFY_GREENS
+  ROOT_VEGETABLES
+  SEASONAL_SPECIALS
+  DAIRY_PRODUCTS
+  MEAT_PRODUCTS
+  BAKERY_ITEMS
+  BEVERAGES
+  SNACKS
+  MEDICINES
+  PERSONAL_CARE
+  OTHER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum MultiStopOrderStatus {
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ConciergeRequestStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String?
+  passwordHash      String?   // NULL for OAuth-only users
+  role              UserRole  @default(CUSTOMER)
+  emailVerified     Boolean   @default(false)
+  lastLoginAt       DateTime?
+  phone             String?
+  address           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  refreshTokens     RefreshToken[]
+  providerAccounts  ProviderAccount[]
+  sessions          Session[]
+  
+  // Customer relations
+  customerOrders    Order[]
+  customerMultiStopOrders MultiStopOrder[]
+  customerConciergeRequests ConciergeRequest[]
+  customerAddresses CustomerAddress[]
+  
+  // Merchant relations
+  merchantStores    Store[]
+  
+  // Rider relations
+  riderDeliveries   Order[] @relation("RiderDeliveries")
+  riderConciergeDeliveries ConciergeRequest[] @relation("RiderConciergeDeliveries")
+
+  @@map("users")
+}
+
+model CustomerAddress {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String   // e.g., "Home", "Office"
+  address     String
+  city        String
+  state       String
+  pincode     String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customer_addresses")
+}
+
+model Store {
+  id              String        @id @default(cuid())
+  merchantId      String
+  name            String
+  description     String?
+  category        StoreCategory
+  address         String
+  city            String
+  state           String
+  pincode         String
+  phone           String?
+  email           String?
+  isActive        Boolean       @default(true)
+  rating          Float         @default(0)
+  totalRatings    Int           @default(0)
+  deliveryRadius  Float         @default(5.0) // in km
+  deliveryFee     Float         @default(0)
+  minOrderAmount  Float         @default(0)
+  estimatedDeliveryTime Int     @default(30) // in minutes
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  merchant        User          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  products        Product[]
+  orders          Order[]
+
+  @@map("stores")
+}
+
+model Product {
+  id              String          @id @default(cuid())
+  storeId         String
+  name            String
+  description     String?
+  category        ProductCategory
+  price           Float
+  originalPrice   Float?
+  unit            String          // e.g., "kg", "piece", "pack"
+  stockQuantity   Int             @default(0)
+  isAvailable     Boolean         @default(true)
+  isFeatured      Boolean         @default(false)
+  imageUrl        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id                  String      @id @default(cuid())
+  customerId          String
+  storeId             String
+  riderId             String?
+  status              OrderStatus @default(PENDING)
+  subtotal            Float
+  deliveryFee         Float       @default(0)
+  tax                 Float       @default(0)
+  total               Float
+  deliveryAddress     String
+  deliveryInstructions String?
+  estimatedDeliveryTime DateTime?
+  actualDeliveryTime  DateTime?
+  paymentMethod       String      @default("CASH_ON_DELIVERY")
+  paymentStatus       String      @default("PENDING")
+  customerRating      Int?
+  customerReview      String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relations
+  customer            User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  store               Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  rider               User?       @relation("RiderDeliveries", fields: [riderId], references: [id])
+  items               OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  notes       String?
+
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model MultiStopOrder {
+  id              String              @id @default(cuid())
+  customerId      String
+  name            String              // e.g., "Weekly Groceries", "Monthly Essentials"
+  description     String?
+  status          MultiStopOrderStatus @default(DRAFT)
+  totalAmount     Float               @default(0)
+  deliveryAddress String
+  deliveryInstructions String?
+  estimatedDeliveryTime DateTime?
+  actualDeliveryTime DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  customer        User                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stops           MultiStopOrderStop[]
+
+  @@map("multi_stop_orders")
+}
+
+model MultiStopOrderStop {
+  id                  String          @id @default(cuid())
+  multiStopOrderId    String
+  storeName           String          // Can be actual store or custom store name
+  storeAddress        String?
+  stopOrder           Int             // Order of stops (1, 2, 3, etc.)
+  items               Json            // Array of items with quantities
+  estimatedAmount     Float           @default(0)
+  actualAmount        Float?
+  notes               String?
+  isCompleted         Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Relations
+  multiStopOrder      MultiStopOrder  @relation(fields: [multiStopOrderId], references: [id], onDelete: Cascade)
+
+  @@map("multi_stop_order_stops")
+}
+
+model ConciergeRequest {
+  id              String                  @id @default(cuid())
+  customerId      String
+  storeName       String
+  storeAddress    String
+  items           Json                    // Array of items with descriptions
+  estimatedAmount Float?
+  actualAmount    Float?
+  status          ConciergeRequestStatus  @default(PENDING)
+  riderId         String?
+  deliveryAddress String
+  deliveryInstructions String?
+  estimatedDeliveryTime DateTime?
+  actualDeliveryTime DateTime?
+  customerRating  Int?
+  customerReview  String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  // Relations
+  customer        User                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rider           User?                   @relation("RiderConciergeDeliveries", fields: [riderId], references: [id])
+
+  @@map("concierge_requests")
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  tokenHash   String   @unique
+  userAgent   String?
+  ipAddress   String?
+  isRevoked   Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model ProviderAccount {
+  id                  String       @id @default(cuid())
+  userId              String
+  provider            AuthProvider
+  providerAccountId   String
+  providerEmail       String
+  providerName        String?
+  accessToken         String?
+  refreshToken        String?
+  expiresAt           DateTime?
+  createdAt           DateTime     @default(now())
+
+  // Relations
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("provider_accounts")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  sessionToken String  @unique
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Audit log for security tracking
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  resource    String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
