@@ -2,9 +2,8 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/database.js';
 import { generateTokenPair, hashRefreshToken, verifyAccessToken, verifyRefreshToken } from '../utils/jwt.js';
-import { generateGoogleAuthUrl, exchangeCodeForTokens, getGoogleUserInfo } from '../config/google.js';
-import { UserRole, AuthProvider } from '@prisma/client';
-import { RegisterRequest, LoginRequest, User, AuthResponse, OAuthState } from '../types/auth.js';
+import { UserRole } from '@prisma/client';
+import { RegisterRequest, LoginRequest, User, AuthResponse } from '../types/auth.js';
 import logger from '../utils/logger.js';
 import { logAuth } from '../utils/logger.js';
 
@@ -146,159 +145,7 @@ export class AuthService {
     }
   }
 
-  // Google OAuth login
-  async googleAuth(code: string, state: string, userAgent?: string, ipAddress?: string): Promise<AuthResponse> {
-    try {
-      // Parse state
-      const oauthState: OAuthState = JSON.parse(state);
-      const { role } = oauthState;
 
-      // Exchange code for tokens
-      const tokens = await exchangeCodeForTokens(code);
-      if (!tokens.access_token) {
-        throw new Error('Failed to get access token from Google');
-      }
-
-      // Get user info from Google
-      const googleUserInfo = await getGoogleUserInfo(tokens.access_token) as any;
-      
-      // Log Google user info for debugging
-      logger.info('Google user info received:', {
-        email: googleUserInfo.email,
-        name: googleUserInfo.name,
-        sub: googleUserInfo.sub,
-        id: googleUserInfo.id,
-        email_verified: googleUserInfo.email_verified,
-      });
-      
-      // Verify email is verified (Google accounts are typically verified)
-      // Only check if the property exists and is explicitly false
-      if (googleUserInfo.email_verified === false) {
-        throw new Error('Google email must be verified');
-      }
-      
-      // Ensure we have the required fields
-      if (!googleUserInfo.email || !googleUserInfo.name) {
-        throw new Error('Incomplete user information from Google');
-      }
-      
-      // Use 'sub' as providerAccountId, fallback to 'id' if 'sub' is not available
-      const providerAccountId = googleUserInfo.sub || googleUserInfo.id;
-      if (!providerAccountId) {
-        throw new Error('Unable to get unique identifier from Google');
-      }
-
-      // Check if user exists
-      let user = await prisma.user.findUnique({
-        where: { email: googleUserInfo.email.toLowerCase() },
-        include: {
-          providerAccounts: {
-            where: { provider: AuthProvider.GOOGLE },
-          },
-        },
-      });
-
-      if (user) {
-        // Check role
-        if (user.role !== role) {
-          throw new Error('Invalid role for this account');
-        }
-
-        // Update or create provider account
-        if (user.providerAccounts.length === 0) {
-          await prisma.providerAccount.create({
-            data: {
-              userId: user.id,
-              provider: AuthProvider.GOOGLE,
-              providerAccountId: providerAccountId,
-              providerEmail: googleUserInfo.email,
-              providerName: googleUserInfo.name,
-              accessToken: tokens.access_token,
-              refreshToken: tokens.refresh_token,
-              expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-            },
-          });
-        } else {
-          // Update existing provider account
-          await prisma.providerAccount.update({
-            where: { id: user.providerAccounts[0].id },
-            data: {
-              providerName: googleUserInfo.name,
-              accessToken: tokens.access_token,
-              refreshToken: tokens.refresh_token,
-              expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-            },
-          });
-        }
-      } else {
-        // Create new user
-        user = await prisma.user.create({
-          data: {
-            email: googleUserInfo.email.toLowerCase(),
-            name: googleUserInfo.name,
-            role,
-            emailVerified: true, // Google emails are verified
-            providerAccounts: {
-              create: {
-                provider: AuthProvider.GOOGLE,
-                providerAccountId: providerAccountId,
-                providerEmail: googleUserInfo.email,
-                providerName: googleUserInfo.name,
-                accessToken: tokens.access_token,
-                refreshToken: tokens.refresh_token,
-                expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-              },
-            },
-          },
-          include: {
-            providerAccounts: true,
-          },
-        });
-      }
-
-      // Update last login
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
-
-      // Generate tokens
-      const { accessToken, refreshToken, refreshTokenHash } = generateTokenPair(user);
-
-      // Store refresh token
-      await prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          tokenHash: refreshTokenHash,
-          userAgent,
-          ipAddress,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        },
-      });
-
-      // Log authentication
-      logAuth('user_logged_in', user.id, { role, method: 'google' });
-
-      return {
-        success: true,
-        message: 'Google OAuth login successful',
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          emailVerified: user.emailVerified,
-          lastLoginAt: user.lastLoginAt,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-        accessToken,
-      };
-    } catch (error) {
-      logger.error('Google OAuth failed:', error);
-      throw error;
-    }
-  }
 
   // Refresh token
   async refreshToken(token: string, userAgent?: string, ipAddress?: string): Promise<AuthResponse> {
@@ -421,38 +268,7 @@ export class AuthService {
     }
   }
 
-  // Generate Google OAuth URL
-  async generateGoogleAuthUrl(role: UserRole, redirectUrl: string): Promise<string> {
-    const state: OAuthState = {
-      role,
-      nonce: uuidv4(),
-      redirectUrl,
-    };
-    
-    // Use the configured Google redirect URI from environment
-    const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
-    if (!googleRedirectUri) {
-      throw new Error('GOOGLE_REDIRECT_URI is not configured');
-    }
-    
-    // Create OAuth2Client with the configured redirect URI
-    const { OAuth2Client } = await import('google-auth-library');
-    const oauthClient = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      googleRedirectUri // Use the configured redirect URI
-    );
-    
-    return oauthClient.generateAuthUrl({
-      access_type: 'offline',
-      scope: [
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile',
-      ],
-      state: JSON.stringify(state),
-      prompt: 'consent',
-    });
-  }
+
 }
 
 export default new AuthService();

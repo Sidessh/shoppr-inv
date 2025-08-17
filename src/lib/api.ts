@@ -296,10 +296,7 @@ class ApiService {
     return response.data!;
   }
 
-  // Google OAuth redirect
-  getGoogleAuthUrl(role: string): string {
-    return `${this.baseURL}/auth/google?role=${role}`;
-  }
+
 }
 
 export const apiService = new ApiService();

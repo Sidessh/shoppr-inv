@@ -8,7 +8,6 @@ import { logRequest } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { generalRateLimit, speedLimit } from './middleware/rateLimit.js';
 import authRoutes from './routes/auth.js';
-import googleAuthRoutes from './routes/auth.google.js';
 import customerRoutes from './routes/customer.js';
 import logger from './utils/logger.js';
 
@@ -70,7 +69,6 @@ app.use(speedLimit);
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', googleAuthRoutes);
 app.use('/api/customer', customerRoutes);
 
 // Root endpoint
@@ -98,7 +96,7 @@ const server = app.listen(Number(PORT), '0.0.0.0', () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🌐 CORS Origin: ${process.env.VITE_WEB_ORIGIN || 'http://localhost:8081'}`);
-  logger.info(`🔐 Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured'}`);
+  logger.info(`🔐 Authentication: Email/Password only`);
 });
 
 // Graceful shutdown

@@ -18,7 +18,7 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
-  "keywords": ["authentication", "oauth", "express", "typescript", "prisma"],
+  "keywords": ["authentication", "express", "typescript", "prisma"],
   "author": "Bharat Shops Hub",
   "license": "MIT",
   "dependencies": {
@@ -34,7 +34,7 @@
     "zod": "^3.22.4",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",
-    "google-auth-library": "^9.4.1",
+
     "uuid": "^9.0.1",
     "dotenv": "^16.3.1",
     "compression": "^1.7.4",

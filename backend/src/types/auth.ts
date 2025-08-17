@@ -26,10 +26,7 @@ export interface LoginRequest {
   role: UserRole;
 }
 
-export interface GoogleAuthRequest {
-  code: string;
-  state: string;
-}
+
 
 // Authentication response types
 export interface AuthResponse {
@@ -44,23 +41,7 @@ export interface TokenResponse {
   refreshToken: string;
 }
 
-// OAuth types
-export interface GoogleUserInfo {
-  sub: string;
-  email: string;
-  email_verified: boolean;
-  name: string;
-  given_name: string;
-  family_name: string;
-  picture: string;
-  locale: string;
-}
 
-export interface OAuthState {
-  role: UserRole;
-  nonce: string;
-  redirectUrl: string;
-}
 
 // JWT payload types
 export interface JWTPayload {

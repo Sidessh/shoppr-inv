@@ -99,30 +99,7 @@ export const clearUserSessionCookie = (res: Response): void => {
   logger.debug('User session cookie cleared');
 };
 
-// Set OAuth state cookie
-export const setOAuthStateCookie = (res: Response, state: string): void => {
-  res.cookie('oauthState', state, {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: 'strict',
-    domain: COOKIE_DOMAIN,
-    path: '/',
-    maxAge: 10 * 60 * 1000, // 10 minutes
-  });
-  logger.debug('OAuth state cookie set');
-};
 
-// Clear OAuth state cookie
-export const clearOAuthStateCookie = (res: Response): void => {
-  res.clearCookie('oauthState', {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: 'strict',
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
-  logger.debug('OAuth state cookie cleared');
-};
 
 // Get cookie options for different environments
 export const getCookieOptionsForEnv = () => {

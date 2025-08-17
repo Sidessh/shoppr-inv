@@ -8,11 +8,11 @@ A production-ready authentication system clone with role-based access control, G
 
 ### 🔐 Authentication
 - **Email/Password Authentication** with bcrypt hashing
-- **Google OAuth 2.0** integration with verified email requirement
 - **Role-based Access Control** (Customer, Merchant, Rider)
 - **JWT Access Tokens** (15 minutes) + **Refresh Tokens** (30 days)
 - **HTTP-only Secure Cookies** for token storage
 - **Token Rotation** - Refresh tokens rotate on every use
+- **Demo Users** - Pre-configured users for all roles
 
 ### 🛡️ Security
 - **Rate Limiting** on all endpoints
@@ -33,7 +33,6 @@ A production-ready authentication system clone with role-based access control, G
 
 - Node.js 18+
 - PostgreSQL database
-- Google OAuth 2.0 credentials
 
 ## 🛠️ Installation
 
@@ -70,10 +69,7 @@ A production-ready authentication system clone with role-based access control, G
    # CORS Configuration
    VITE_WEB_ORIGIN=http://localhost:8081
 
-   # Google OAuth Configuration
-   GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/google/callback
+   
 
    # Rate Limiting
    RATE_LIMIT_WINDOW_MS=900000
@@ -93,11 +89,26 @@ A production-ready authentication system clone with role-based access control, G
    # Run database migrations
    npm run db:migrate
 
-   # Seed database (optional)
-   npm run db:seed
+   # Seed database with demo users
+npm run db:seed
    ```
 
-4. **Start the server:**
+4. **Demo Users:**
+   The application comes with pre-configured demo users for all roles:
+
+   **Customers:**
+   - Email: `customer1@demo.com` | Password: `Demo123!`
+   - Email: `customer2@demo.com` | Password: `Demo123!`
+
+   **Merchants:**
+   - Email: `merchant1@demo.com` | Password: `Demo123!`
+   - Email: `merchant2@demo.com` | Password: `Demo123!`
+
+   **Riders:**
+   - Email: `rider1@demo.com` | Password: `Demo123!`
+   - Email: `rider2@demo.com` | Password: `Demo123!`
+
+5. **Start the server:**
    ```bash
    # Development
    npm run dev
@@ -138,22 +149,7 @@ CREATE TABLE refresh_tokens (
 );
 ```
 
-### Provider Accounts Table
-```sql
-CREATE TABLE provider_accounts (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL,
-  provider_account_id TEXT NOT NULL,
-  provider_email TEXT NOT NULL,
-  provider_name TEXT,
-  access_token TEXT,
-  refresh_token TEXT,
-  expires_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(provider, provider_account_id)
-);
-```
+
 
 ## 🔌 API Endpoints
 
@@ -167,9 +163,7 @@ CREATE TABLE provider_accounts (
 - `POST /api/auth/logout-all` - Revoke all user sessions
 - `GET /api/auth/me` - Get current user info
 
-#### Google OAuth
-- `GET /api/auth/google` - Initiate Google OAuth flow
-- `GET /api/auth/google/callback` - Handle OAuth callback
+
 
 #### Health Check
 - `GET /api/auth/health` - Service health check
@@ -271,10 +265,7 @@ src/
 - **Token Storage**: SHA-256 hashed in database
 - **Secure Cookies**: HTTP-only, SameSite=strict
 
-### OAuth Security
-- **Verified Email Only**: Only trust verified Google emails
-- **State Validation**: Prevents CSRF attacks
-- **Secure Redirect**: Proper redirect URI validation
+
 
 ## 🚀 Production Deployment
 
@@ -302,7 +293,7 @@ The application includes Helmet for security headers:
 ### Common Issues
 
 1. **Database Connection**: Check PostgreSQL is running and credentials are correct
-2. **Google OAuth Errors**: Verify redirect URI matches exactly
+
 3. **CORS Errors**: Ensure `VITE_WEB_ORIGIN` matches your frontend URL
 4. **Cookie Issues**: Ensure domain and secure settings match your environment
 

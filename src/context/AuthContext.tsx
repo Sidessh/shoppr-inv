@@ -10,7 +10,6 @@ export interface AuthContextType {
   register: (credentials: RegisterRequest) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
-  initiateGoogleAuth: (role: string) => void;
 }
 
 // Context
@@ -72,13 +71,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
-  const initiateGoogleAuth = (role: string): void => {
-    // Simple full-page redirect to backend Google OAuth endpoint
-    const authUrl = apiService.getGoogleAuthUrl(role);
-    console.log('[Google OAuth] redirecting to:', authUrl);
-    window.location.href = authUrl;
-  };
-
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -87,7 +79,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     logoutAll,
-    initiateGoogleAuth,
   };
 
   return (

@@ -7,18 +7,15 @@ A production-ready e-commerce platform clone with role-based authentication, Goo
 ## Features
 
 ### 🔐 Authentication
-- **Email/Password Authentication** with Argon2id hashing
-- **Google OAuth 2.0 / OpenID Connect** integration
-- **Account Linking** - Link Google accounts to existing email users
+- **Email/Password Authentication** with bcrypt hashing
 - **JWT Access Tokens** (15 minutes) + **Rotating Refresh Tokens** (30 days)
 - **HTTP-only Secure Cookies** for all tokens (no client-side JWT handling)
+- **Demo Users** - Pre-configured users for all roles (Customer, Merchant, Rider)
 
 ### 🛡️ Security
-- **PKCE + State + Nonce** for OAuth security
 - **Rate Limiting** on authentication endpoints
 - **Helmet** security headers
 - **CORS** with credentials support
-- **Verified Email Only** - Only trust Google emails with `email_verified=true`
 - **Token Rotation** - Refresh tokens rotate on every use
 - **Forced Logout** - Support for revoking all user tokens
 
@@ -34,7 +31,6 @@ A production-ready e-commerce platform clone with role-based authentication, Goo
 ### Prerequisites
 - Node.js 18+
 - PostgreSQL database
-- Google OAuth 2.0 credentials
 
 ### 1. Clone and Install Dependencies
 
@@ -89,10 +85,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 AUTH_RATE_LIMIT_MAX_REQUESTS=5
 AUTH_RATE_LIMIT_WINDOW_MS=900000
 
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/google/callback
+
 
 # OAuth State Management
 STATE_SECRET=your-state-secret-key-change-in-production
@@ -124,18 +117,26 @@ npm run db:generate
 npm run db:migrate
 ```
 
-### 4. Google OAuth Setup
+### 4. Demo Users Setup
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable the Google+ API
-4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
-5. Set up OAuth consent screen
-6. Create OAuth 2.0 Client ID for "Web application"
-7. Add authorized redirect URIs:
-   - `http://localhost:3001/api/auth/google/callback` (for development)
-   - `https://yourdomain.com/api/auth/google/callback` (for production)
-8. Copy the Client ID and Client Secret to your `.env` file
+The application comes with pre-configured demo users for all roles:
+
+**Customers:**
+- Email: `customer1@demo.com` | Password: `Demo123!`
+- Email: `customer2@demo.com` | Password: `Demo123!`
+
+**Merchants:**
+- Email: `merchant1@demo.com` | Password: `Demo123!`
+- Email: `merchant2@demo.com` | Password: `Demo123!`
+
+**Riders:**
+- Email: `rider1@demo.com` | Password: `Demo123!`
+- Email: `rider2@demo.com` | Password: `Demo123!`
+
+Run the seed script to create these users:
+```bash
+npm run db:seed
+```
 
 ### 5. Start the Application
 
@@ -167,10 +168,7 @@ The frontend will start on `http://localhost:8081`
 - `POST /api/auth/logout-all` - Revoke all user sessions
 - `GET /api/auth/me` - Get current user info
 
-#### Google OAuth
-- `GET /api/auth/google` - Initiate Google OAuth flow
-- `GET /api/auth/google/callback` - Handle OAuth callback
-- `POST /api/auth/google/logout` - Google OAuth logout
+
 
 #### Protected Endpoints
 - `GET /api/users` - Example protected route
@@ -225,9 +223,7 @@ function MyComponent() {
     }
   };
 
-  const handleGoogleAuth = () => {
-    initiateGoogleAuth(); // Redirects to Google OAuth
-  };
+
 
   return (
     <div>
@@ -276,11 +272,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 - **Token Storage**: SHA-256 hashed in database
 - **Token Revocation**: Support for forced logout
 
-### OAuth Security
-- **PKCE**: Proof Key for Code Exchange
-- **State Validation**: Prevents CSRF attacks
-- **Nonce Validation**: Prevents replay attacks
-- **Verified Email Only**: Only trust verified Google emails
+
 
 ## Database Schema
 
@@ -311,18 +303,7 @@ CREATE TABLE refresh_tokens (
 );
 ```
 
-### Provider Accounts Table
-```sql
-CREATE TABLE provider_accounts (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL,
-  provider_account_id TEXT NOT NULL,
-  email TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(provider, provider_account_id)
-);
-```
+
 
 ## Development
 
@@ -377,7 +358,7 @@ The application includes Helmet for security headers:
 ### Common Issues
 
 1. **CORS Errors**: Ensure `VITE_WEB_ORIGIN` matches your frontend URL
-2. **Google OAuth Errors**: Verify redirect URI matches exactly
+
 3. **Database Connection**: Check PostgreSQL is running and credentials are correct
 4. **Cookie Issues**: Ensure domain and secure settings match your environment
 

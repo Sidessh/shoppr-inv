@@ -16,10 +16,7 @@ enum UserRole {
   RIDER
 }
 
-enum AuthProvider {
-  EMAIL
-  GOOGLE
-}
+
 
 enum StoreCategory {
   GROCERY
@@ -90,7 +87,6 @@ model User {
 
   // Relations
   refreshTokens     RefreshToken[]
-  providerAccounts  ProviderAccount[]
   sessions          Session[]
   
   // Customer relations
@@ -309,24 +305,7 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model ProviderAccount {
-  id                  String       @id @default(cuid())
-  userId              String
-  provider            AuthProvider
-  providerAccountId   String
-  providerEmail       String
-  providerName        String?
-  accessToken         String?
-  refreshToken        String?
-  expiresAt           DateTime?
-  createdAt           DateTime     @default(now())
 
-  // Relations
-  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("provider_accounts")
-}
 
 model Session {
   id          String   @id @default(cuid())
